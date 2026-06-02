@@ -31,6 +31,12 @@ Grit is a beautiful, mobile-first productivity app built as a Progressive Web Ap
 | Lucide React | Icons |
 | Vite PWA Plugin | Service worker + installability |
 
+## 📥 Download App
+
+You can download the latest Android APK directly from our releases page:
+
+[![Download APK](https://img.shields.io/badge/Download-APK-green?style=for-the-badge&logo=android)](https://github.com/damansahud90-sys/Grit/releases/latest)
+
 ## 🚀 Getting Started
 
 ### Prerequisites
