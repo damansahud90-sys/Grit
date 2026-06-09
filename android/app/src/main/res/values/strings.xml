@@ -4,4 +4,5 @@
     <string name="title_activity_main">Grit</string>
     <string name="package_name">com.damansahu.grit</string>
     <string name="custom_url_scheme">com.damansahu.grit</string>
+    <string name="server_client_id">YOUR_WEB_CLIENT_ID.apps.googleusercontent.com</string>
 </resources>

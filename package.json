@@ -12,6 +12,7 @@
     "@capacitor/android": "^8.3.4",
     "@capacitor/cli": "^8.3.4",
     "@capacitor/core": "^8.3.4",
+    "@capawesome/capacitor-google-sign-in": "^0.1.2",
     "canvas-confetti": "^1.9.3",
     "dayjs": "^1.11.13",
     "firebase": "^12.14.0",

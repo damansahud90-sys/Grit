@@ -14,8 +14,11 @@ import {
   GoogleAuthProvider,
   signInWithRedirect,
   getRedirectResult,
+  signInWithCredential,
 } from 'firebase/auth';
 import { auth } from '../firebase';
+import { Capacitor } from '@capacitor/core';
+import { GoogleSignIn } from '@capawesome/capacitor-google-sign-in';
 
 const googleProvider = new GoogleAuthProvider();
 
@@ -96,15 +99,25 @@ export default function useAuth() {
     }
   }, []);
 
-  // Sign in with Google (using Redirect for Android compatibility)
+  // Sign in with Google (using Native Google Sign-In for Capacitor, fall back to Redirect for Web)
   const signInWithGoogle = useCallback(async () => {
     setError(null);
     setLoading(true);
     try {
-      await signInWithRedirect(auth, googleProvider);
-      // Result will be handled by getRedirectResult in useEffect
+      if (Capacitor.isNativePlatform()) {
+        const result = await GoogleSignIn.signIn({
+          clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com',
+        });
+        const credential = GoogleAuthProvider.credential(result.idToken);
+        const userCredential = await signInWithCredential(auth, credential);
+        return userCredential.user;
+      } else {
+        await signInWithRedirect(auth, googleProvider);
+        // Result will be handled by getRedirectResult in useEffect
+      }
     } catch (err) {
-      setError(getErrorMessage(err.code));
+      console.error('Google Sign-In failed:', err);
+      setError(getErrorMessage(err.code || err.message));
       setLoading(false);
       throw err;
     }
