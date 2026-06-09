@@ -96,7 +96,7 @@ export default function App() {
       case 'focus':
         return <Focus key="focus" onOpenSettings={() => setShowSettings(true)} />;
       case 'stats':
-        return <Stats key="stats" />;
+        return <Stats key="stats" onOpenSettings={() => setShowSettings(true)} />;
       case 'diary':
         return <Diary key="diary" />;
       default:
