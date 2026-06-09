@@ -105,9 +105,10 @@ export default function useAuth() {
     setLoading(true);
     try {
       if (Capacitor.isNativePlatform()) {
-        const result = await GoogleSignIn.signIn({
+        await GoogleSignIn.initialize({
           clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '314917536663-414ev8tjiiqldq37pmca5nmfb4644rt3.apps.googleusercontent.com',
         });
+        const result = await GoogleSignIn.signIn();
         const credential = GoogleAuthProvider.credential(result.idToken);
         const userCredential = await signInWithCredential(auth, credential);
         return userCredential.user;

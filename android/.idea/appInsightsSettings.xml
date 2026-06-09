@@ -8,10 +8,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="com.damansahu.grit" />
+                  <option name="mobileSdkAppId" value="1:314917536663:android:f883f6725e01ed6949fad2" />
+                  <option name="projectId" value="grit-dcc6b" />
+                  <option name="projectNumber" value="314917536663" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />
