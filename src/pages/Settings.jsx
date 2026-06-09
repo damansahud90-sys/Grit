@@ -19,8 +19,7 @@ const pageVariants = {
 export default function Settings({ onClose, user, isGuest }) {
   const { signOut } = useAuth();
   const {
-    userName, targetDate, targetName, theme, dailyTargetHours,
-    pomodoroFocus, pomodoroShortBreak, pomodoroLongBreak,
+    userName, theme, dailyTargetHours,
     categories, categoryTargets,
     updateSetting, updateCategoryTarget, toggleTheme,
     addCategory, updateCategory, deleteCategory,
@@ -133,22 +132,7 @@ export default function Settings({ onClose, user, isGuest }) {
               placeholder="Enter your name"
             />
           </SettingsField>
-          <SettingsField label="Target Name">
-            <input
-              className="input input--warm"
-              value={targetName}
-              onChange={(e) => updateSetting('targetName', e.target.value)}
-              placeholder="e.g., CPA Exam, Product Launch"
-            />
-          </SettingsField>
-          <SettingsField label="Target Date">
-            <input
-              className="input input--warm"
-              type="date"
-              value={targetDate}
-              onChange={(e) => updateSetting('targetDate', e.target.value)}
-            />
-          </SettingsField>
+
           <SettingsField label="Daily Goal">
             <TimeStepper
               value={dailyTargetHours}
@@ -179,37 +163,7 @@ export default function Settings({ onClose, user, isGuest }) {
           </div>
         </SettingsSection>
 
-        {/* Pomodoro Config */}
-        <SettingsSection icon={<Timer size={18} />} title="Pomodoro Timer">
-          <div className="flex gap-md" style={{ justifyContent: 'center' }}>
-            <TimeStepper
-              value={pomodoroFocus}
-              onChange={(v) => updateSetting('pomodoroFocus', v)}
-              min={5}
-              max={120}
-              step={5}
-              label="Focus"
-              unit="min"
-            />
-            <TimeStepper
-              value={pomodoroShortBreak}
-              onChange={(v) => updateSetting('pomodoroShortBreak', v)}
-              min={1}
-              max={30}
-              label="Short Break"
-              unit="min"
-            />
-            <TimeStepper
-              value={pomodoroLongBreak}
-              onChange={(v) => updateSetting('pomodoroLongBreak', v)}
-              min={5}
-              max={60}
-              step={5}
-              label="Long Break"
-              unit="min"
-            />
-          </div>
-        </SettingsSection>
+
 
         {/* Category Manager */}
         <SettingsSection icon={<Tag size={18} />} title="Categories">
@@ -260,30 +214,42 @@ export default function Settings({ onClose, user, isGuest }) {
                   </div>
                 ) : (
                   <div className="flex-between items-center" style={{ padding: '8px 0' }}>
-                    <button
-                      className="flex items-center gap-sm"
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-                      onClick={() => startEditCategory(cat)}
-                    >
-                      <div
-                        style={{
-                          width: 12,
-                          height: 12,
-                          borderRadius: '50%',
-                          background: cat.color,
-                          flexShrink: 0,
-                        }}
+                    <div className="flex items-center gap-sm" style={{ flex: 1 }}>
+                      <button
+                        className="flex items-center gap-sm"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                        onClick={() => startEditCategory(cat)}
+                      >
+                        <div
+                          style={{
+                            width: 12,
+                            height: 12,
+                            borderRadius: '50%',
+                            background: cat.color,
+                            flexShrink: 0,
+                          }}
+                        />
+                        <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>{cat.name}</span>
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-sm">
+                      <TimeStepper
+                        value={categoryTargets[cat.key] || 0}
+                        onChange={(v) => updateCategoryTarget(cat.key, v)}
+                        min={0}
+                        max={500}
+                        step={5}
+                        unit="hrs"
                       />
-                      <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>{cat.name}</span>
-                    </button>
-                    <button
-                      className="btn btn--icon"
-                      style={{ color: 'var(--text-light)' }}
-                      onClick={() => deleteCategory(cat.key)}
-                      aria-label={`Delete ${cat.name}`}
-                    >
-                      <X size={14} />
-                    </button>
+                      <button
+                        className="btn btn--icon"
+                        style={{ color: 'var(--text-light)' }}
+                        onClick={() => deleteCategory(cat.key)}
+                        aria-label={`Delete ${cat.name}`}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -363,58 +329,7 @@ export default function Settings({ onClose, user, isGuest }) {
           </AnimatePresence>
         </SettingsSection>
 
-        {/* Category Hour Targets */}
-        <SettingsSection icon={<BookOpen size={18} />} title="Category Hour Targets">
-          <motion.button
-            className="btn btn--ghost w-full"
-            style={{ justifyContent: 'space-between' }}
-            onClick={() => setShowSubjects(!showSubjects)}
-            whileTap={{ scale: 0.98 }}
-          >
-            <span>{showSubjects ? 'Hide categories' : 'Configure category targets'}</span>
-            <ChevronRight
-              size={16}
-              style={{
-                transform: showSubjects ? 'rotate(90deg)' : 'rotate(0deg)',
-                transition: 'transform 0.2s',
-              }}
-            />
-          </motion.button>
 
-          {showSubjects && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              className="flex-col gap-sm"
-              style={{ marginTop: 12 }}
-            >
-              {categories.map((cat) => (
-                <div key={cat.key} className="flex-between items-center" style={{ padding: '8px 0' }}>
-                  <div className="flex items-center gap-sm">
-                    <div
-                      style={{
-                        width: 10,
-                        height: 10,
-                        borderRadius: '50%',
-                        background: getCategoryColor(cat.key),
-                        flexShrink: 0,
-                      }}
-                    />
-                    <span className="body-sm" style={{ fontWeight: 500 }}>{cat.name}</span>
-                  </div>
-                  <TimeStepper
-                    value={categoryTargets[cat.key] || 0}
-                    onChange={(v) => updateCategoryTarget(cat.key, v)}
-                    min={0}
-                    max={500}
-                    step={5}
-                    unit="hrs"
-                  />
-                </div>
-              ))}
-            </motion.div>
-          )}
-        </SettingsSection>
 
         {/* Data Management */}
         <SettingsSection icon={<Database size={18} />} title="Data">

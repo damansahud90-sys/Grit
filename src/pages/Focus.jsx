@@ -1,11 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Settings, User, Play, Pause, Square, RotateCcw, Clock,
   ChevronDown,
 } from 'lucide-react';
 import useTaskStore from '../store/useTaskStore';
-import useSettingsStore from '../store/useSettingsStore';
+import useTimerStore from '../store/useTimerStore';
 import useTimer from '../hooks/useTimer';
 import { getCategoryColor, getCategoryName } from '../utils/subjects';
 import TimeStepper from '../components/ui/TimeStepper';
@@ -18,13 +18,21 @@ const pageVariants = {
   exit: { opacity: 0, x: -30 },
 };
 
-export default function Focus({ onOpenSettings, initialTaskId }) {
-  const { tasks, addSession } = useTaskStore();
-  const { pomodoroFocus, pomodoroShortBreak } = useSettingsStore();
+// Duration chip presets
+const DURATION_CHIPS = [
+  { label: '15m', seconds: 900 },
+  { label: '25m', seconds: 1500 },
+  { label: '45m', seconds: 2700 },
+  { label: '60m', seconds: 3600 },
+  { label: '∞', seconds: null },
+];
+
+export default function Focus({ onOpenSettings }) {
+  const { tasks, addSession, logMinutes } = useTaskStore();
   const timer = useTimer();
   const {
-    elapsed, isRunning, isPaused, phase, pomodoroRound,
-    start, pause, resume, stop, reset, pomodoroEnabled, togglePomodoro,
+    elapsed, isRunning, isPaused, duration, taskId,
+    start, pause, resume, stop, reset, setDuration, setTaskId,
   } = timer;
 
   const today = getToday();
@@ -33,59 +41,130 @@ export default function Focus({ onOpenSettings, initialTaskId }) {
     [tasks]
   );
 
-  const [selectedTaskId, setSelectedTaskId] = useState(initialTaskId || '');
+  // Local UI state
+  const [selectedDuration, setSelectedDuration] = useState(1500); // default 25m
+  const [selectedTaskId, setSelectedTaskId] = useState('');
   const [showSummary, setShowSummary] = useState(false);
   const [sessionNote, setSessionNote] = useState('');
   const [lastSessionDuration, setLastSessionDuration] = useState(0);
+  const [lastSessionTaskId, setLastSessionTaskId] = useState(null);
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [manualTaskId, setManualTaskId] = useState('');
   const [manualHours, setManualHours] = useState(0);
   const [manualMinutes, setManualMinutes] = useState(0);
 
-  const selectedTask = tasks.find((t) => t.id === selectedTaskId);
+  // Sync local selection with store when timer is already running (e.g. navigated back)
+  useEffect(() => {
+    if (isRunning || isPaused) {
+      setSelectedDuration(duration);
+      if (taskId) setSelectedTaskId(taskId);
+    }
+  }, []); // intentionally run once on mount
 
-  // Timer ring calculations
+  const selectedTask = tasks.find((t) => t.id === (isRunning || isPaused ? taskId : selectedTaskId));
+
+  // ─── Timer ring calculations ───────────────────
   const radius = 115;
   const circumference = 2 * Math.PI * radius;
-  let maxSeconds = 3600; // default 1 hour for count-up
-  if (pomodoroEnabled) {
-    if (phase === 'focus') maxSeconds = pomodoroFocus * 60;
-    else if (phase === 'shortBreak') maxSeconds = pomodoroShortBreak * 60;
-    else maxSeconds = 15 * 60; // long break
+
+  let displayTime;
+  let progressFraction;
+
+  if (duration !== null) {
+    // Countdown mode: ring depletes, display shows remaining
+    const remaining = Math.max(duration - elapsed, 0);
+    displayTime = remaining;
+    progressFraction = duration > 0 ? Math.min(elapsed / duration, 1) : 0;
+  } else {
+    // Count-up mode: ring fills based on elapsed/3600 (1 hour max visual)
+    displayTime = elapsed;
+    progressFraction = Math.min(elapsed / 3600, 1);
   }
-  const progressFraction = pomodoroEnabled
-    ? Math.min(elapsed / maxSeconds, 1)
-    : Math.min(elapsed / maxSeconds, 1);
-  const strokeDashoffset = circumference * (1 - progressFraction);
+
+  // In countdown mode the ring starts full and depletes
+  // In count-up mode the ring starts empty and fills
+  const strokeDashoffset = duration !== null
+    ? circumference * (1 - (1 - progressFraction))  // depletes: full → empty
+    : circumference * (1 - progressFraction);        // fills: empty → full
+
+  // ─── Auto-show summary when countdown auto-stops ───
+  useEffect(() => {
+    if (
+      !isRunning &&
+      !isPaused &&
+      lastSessionDuration === 0 &&
+      elapsed === 0
+    ) {
+      // Check if a session was just auto-stopped by the hook
+      // We detect this by the store being reset while we had a running timer
+    }
+  }, [isRunning, isPaused, elapsed, lastSessionDuration]);
+
+  // Watch for auto-stop from countdown completion
+  const wasRunningRef = useMemo(() => ({ current: false }), []);
+  useEffect(() => {
+    if (isRunning || isPaused) {
+      wasRunningRef.current = true;
+    } else if (wasRunningRef.current) {
+      // Timer just stopped (could be auto-stop from countdown)
+      wasRunningRef.current = false;
+      // If no summary is already showing, and we had meaningful elapsed time
+      // the stop handler in handleStop will handle manual stops,
+      // so this handles auto-stops from countdown completion
+    }
+  }, [isRunning, isPaused, wasRunningRef]);
+
+  // ─── Handlers ──────────────────────────────────
+  const handleDurationSelect = (seconds) => {
+    setSelectedDuration(seconds);
+    // If timer is running, update the store's duration in-flight
+    if (isRunning || isPaused) {
+      setDuration(seconds);
+    }
+  };
 
   const handleStart = () => {
-    if (!selectedTaskId) return;
-    start();
+    const tid = selectedTaskId || null;
+    start(selectedDuration, tid);
   };
 
   const handleStop = () => {
     const result = stop();
-    const finalElapsed = result?.totalElapsed || elapsed;
+    const finalElapsed = result?.elapsedSeconds || elapsed;
+    const finalTaskId = result?.taskId || null;
     setLastSessionDuration(finalElapsed);
+    setLastSessionTaskId(finalTaskId);
     setSessionNote('');
-    setShowSummary(true);
+    if (finalElapsed > 0) {
+      setShowSummary(true);
+    }
   };
 
   const handleSaveSummary = () => {
-    if (selectedTask && lastSessionDuration > 0) {
+    const sessionTask = tasks.find((t) => t.id === lastSessionTaskId);
+    const durationMinutes = Math.round(lastSessionDuration / 60);
+
+    if (lastSessionDuration > 0) {
       addSession({
-        taskId: selectedTask.id,
-        subject: selectedTask.subject,
+        taskId: lastSessionTaskId,
+        subject: sessionTask?.subject || '',
         startTime: new Date(Date.now() - lastSessionDuration * 1000).toISOString(),
         endTime: new Date().toISOString(),
-        durationMinutes: Math.round(lastSessionDuration / 60),
+        durationMinutes,
         type: 'timer',
         sessionNote: sessionNote,
-        pomodoroRounds: pomodoroEnabled ? pomodoroRound : 0,
+        pomodoroRounds: 0,
       });
+
+      // Also log minutes to the task
+      if (lastSessionTaskId && durationMinutes > 0) {
+        logMinutes(lastSessionTaskId, durationMinutes);
+      }
     }
+
     setShowSummary(false);
     setLastSessionDuration(0);
+    setLastSessionTaskId(null);
   };
 
   const handleManualEntry = () => {
@@ -102,13 +181,16 @@ export default function Focus({ onOpenSettings, initialTaskId }) {
       sessionNote: '',
       pomodoroRounds: 0,
     });
+    if (totalMinutes > 0) {
+      logMinutes(manualTaskId, totalMinutes);
+    }
     setShowManualEntry(false);
     setManualTaskId('');
     setManualHours(0);
     setManualMinutes(0);
   };
 
-  const phaseLabel = phase === 'focus' ? 'Focus' : phase === 'shortBreak' ? 'Short Break' : 'Long Break';
+  const lastSessionTask = tasks.find((t) => t.id === lastSessionTaskId);
 
   return (
     <motion.div
@@ -133,38 +215,48 @@ export default function Focus({ onOpenSettings, initialTaskId }) {
       </div>
 
       <div className="page-content" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        {/* Task Selector */}
-        <div style={{ width: '100%', marginBottom: 8 }}>
-          <div className="card" style={{ padding: '12px 16px' }}>
-            <div className="flex items-center gap-sm">
-              {selectedTask?.subject && (
-                <span
-                  style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: 'var(--radius-full)',
-                    background: getCategoryColor(selectedTask.subject),
-                    flexShrink: 0,
-                  }}
-                />
-              )}
-              <select
-                className="select"
-                value={selectedTaskId}
-                onChange={(e) => setSelectedTaskId(e.target.value)}
-                style={{ border: 'none', background: 'transparent', padding: 0, flex: 1 }}
+        {/* Duration Chips */}
+        <div
+          style={{
+            display: 'flex',
+            gap: 8,
+            justifyContent: 'center',
+            flexWrap: 'wrap',
+            marginBottom: 20,
+            width: '100%',
+          }}
+        >
+          {DURATION_CHIPS.map((chip) => {
+            const isActive = (isRunning || isPaused)
+              ? duration === chip.seconds
+              : selectedDuration === chip.seconds;
+            return (
+              <motion.button
+                key={chip.label}
+                whileTap={{ scale: 0.93 }}
+                onClick={() => handleDurationSelect(chip.seconds)}
+                style={{
+                  padding: '8px 18px',
+                  borderRadius: 'var(--radius-full)',
+                  border: isActive ? 'none' : '1.5px solid var(--border-medium)',
+                  background: isActive
+                    ? 'var(--accent-amber)'
+                    : 'var(--bg-secondary)',
+                  color: isActive ? '#fff' : 'var(--text-secondary)',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
               >
-                <option value="">Select a task...</option>
-                {activeTasks.map((t) => (
-                  <option key={t.id} value={t.id}>{t.title}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+                {chip.label}
+              </motion.button>
+            );
+          })}
         </div>
 
         {/* Timer Circle */}
-        <div style={{ position: 'relative', width: 260, height: 260, margin: '16px auto' }}>
+        <div style={{ position: 'relative', width: 260, height: 260, margin: '8px auto' }}>
           <svg width="260" height="260" style={{ transform: 'rotate(-90deg)' }}>
             {/* Track */}
             <circle
@@ -197,42 +289,85 @@ export default function Focus({ onOpenSettings, initialTaskId }) {
               top: '50%',
               left: '50%',
               transform: 'translate(-50%, -50%)',
-              fontFamily: 'var(--font-mono)',
-              fontSize: '2.75rem',
-              fontWeight: 600,
-              color: 'var(--text-primary)',
-              letterSpacing: '-0.02em',
+              textAlign: 'center',
             }}
           >
-            {formatTime(elapsed)}
+            <div
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '2.75rem',
+                fontWeight: 600,
+                color: 'var(--text-primary)',
+                letterSpacing: '-0.02em',
+              }}
+            >
+              {formatTime(displayTime)}
+            </div>
+            {(isRunning || isPaused) && duration !== null && (
+              <div className="body-sm" style={{ marginTop: 2, color: 'var(--text-tertiary)' }}>
+                {duration !== null ? 'remaining' : ''}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Task Selector */}
+        <div style={{ width: '100%', marginTop: 12, marginBottom: 8 }}>
+          <div className="card" style={{ padding: '12px 16px' }}>
+            <div className="flex items-center gap-sm">
+              {selectedTask?.subject && (
+                <span
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: 'var(--radius-full)',
+                    background: getCategoryColor(selectedTask.subject),
+                    flexShrink: 0,
+                  }}
+                />
+              )}
+              <select
+                className="select"
+                value={isRunning || isPaused ? (taskId || '') : selectedTaskId}
+                onChange={(e) => {
+                  setSelectedTaskId(e.target.value);
+                  if (isRunning || isPaused) {
+                    setTaskId(e.target.value || null);
+                  }
+                }}
+                style={{ border: 'none', background: 'transparent', padding: 0, flex: 1 }}
+              >
+                <option value="">No task (free focus)</option>
+                {activeTasks.map((t) => (
+                  <option key={t.id} value={t.id}>{t.title}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
         {/* Task info */}
-        <div style={{ textAlign: 'center', marginBottom: 20 }}>
-          <h2 className="heading-md" style={{ fontSize: '1.25rem', marginBottom: 6 }}>
-            {selectedTask ? selectedTask.title : 'Select a task'}
-          </h2>
-          {selectedTask?.subject && (
-            <span
-              className="badge badge--subject"
-              style={{
-                background: `${getCategoryColor(selectedTask.subject)}18`,
-                color: getCategoryColor(selectedTask.subject),
-              }}
-            >
-              {getCategoryName(selectedTask.subject)}
-            </span>
-          )}
-          {pomodoroEnabled && isRunning && (
-            <div className="body-sm" style={{ marginTop: 6 }}>
-              {phaseLabel} • Round {pomodoroRound}/4
-            </div>
-          )}
-        </div>
+        {selectedTask && (
+          <div style={{ textAlign: 'center', marginBottom: 12, marginTop: 4 }}>
+            <h2 className="heading-md" style={{ fontSize: '1.125rem', marginBottom: 4 }}>
+              {selectedTask.title}
+            </h2>
+            {selectedTask.subject && (
+              <span
+                className="badge badge--subject"
+                style={{
+                  background: `${getCategoryColor(selectedTask.subject)}18`,
+                  color: getCategoryColor(selectedTask.subject),
+                }}
+              >
+                {getCategoryName(selectedTask.subject)}
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Controls */}
-        <div className="flex items-center gap-lg" style={{ marginBottom: 24 }}>
+        <div className="flex items-center gap-lg" style={{ marginBottom: 24, marginTop: selectedTask ? 0 : 16 }}>
           {/* Stop */}
           <motion.button
             className="flex-center"
@@ -242,6 +377,8 @@ export default function Focus({ onOpenSettings, initialTaskId }) {
               borderRadius: 'var(--radius-full)',
               border: '2px solid var(--border-medium)',
               color: 'var(--text-secondary)',
+              background: 'none',
+              cursor: 'pointer',
             }}
             whileTap={{ scale: 0.85 }}
             onClick={handleStop}
@@ -260,6 +397,8 @@ export default function Focus({ onOpenSettings, initialTaskId }) {
               background: 'var(--accent-amber)',
               color: '#fff',
               boxShadow: 'var(--shadow-fab)',
+              border: 'none',
+              cursor: 'pointer',
             }}
             whileTap={{ scale: 0.9 }}
             onClick={() => {
@@ -267,7 +406,6 @@ export default function Focus({ onOpenSettings, initialTaskId }) {
               else if (isRunning && !isPaused) pause();
               else resume();
             }}
-            disabled={!selectedTaskId}
           >
             {isRunning && !isPaused ? (
               <Pause size={24} fill="currentColor" />
@@ -285,40 +423,14 @@ export default function Focus({ onOpenSettings, initialTaskId }) {
               borderRadius: 'var(--radius-full)',
               border: '2px solid var(--border-medium)',
               color: 'var(--text-secondary)',
+              background: 'none',
+              cursor: 'pointer',
             }}
             whileTap={{ scale: 0.85 }}
             onClick={reset}
           >
             <RotateCcw size={18} />
           </motion.button>
-        </div>
-
-        {/* Pomodoro Mode Card */}
-        <div className="card" style={{
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '16px 20px',
-          marginBottom: 16,
-        }}>
-          <div className="flex items-center gap-sm">
-            <Clock size={18} style={{ color: 'var(--accent-amber)' }} />
-            <div>
-              <div style={{ fontWeight: 600, fontSize: '0.9375rem' }}>Pomodoro Mode</div>
-              <div className="body-sm" style={{ fontSize: '0.75rem' }}>
-                {pomodoroFocus}m focus, {pomodoroShortBreak}m break
-              </div>
-            </div>
-          </div>
-          <label className="toggle-switch">
-            <input
-              type="checkbox"
-              checked={pomodoroEnabled}
-              onChange={togglePomodoro}
-            />
-            <span className="toggle-switch__slider" />
-          </label>
         </div>
 
         {/* Manual time link */}
@@ -358,10 +470,9 @@ export default function Focus({ onOpenSettings, initialTaskId }) {
             <div className="body-sm">Time spent this session</div>
           </div>
 
-          {selectedTask && (
+          {lastSessionTask && (
             <div className="body-sm" style={{ textAlign: 'center' }}>
-              Total on <strong>{selectedTask.title}</strong>:{' '}
-              {Math.round((selectedTask.loggedMinutes || 0) + lastSessionDuration / 60)}m
+              Task: <strong>{lastSessionTask.title}</strong>
             </div>
           )}
 

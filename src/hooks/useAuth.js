@@ -12,7 +12,8 @@ import {
   updateProfile,
   sendPasswordResetEmail,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
 } from 'firebase/auth';
 import { auth } from '../firebase';
 
@@ -23,8 +24,14 @@ export default function useAuth() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Listen for auth state changes
+  // Listen for auth state changes & handle redirect result
   useEffect(() => {
+    // Check if we just came back from a Google Redirect
+    getRedirectResult(auth).catch((err) => {
+      console.error('Redirect sign-in error:', err);
+      setError(getErrorMessage(err.code));
+    });
+
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
       setLoading(false);
@@ -89,18 +96,17 @@ export default function useAuth() {
     }
   }, []);
 
-  // Sign in with Google
+  // Sign in with Google (using Redirect for Android compatibility)
   const signInWithGoogle = useCallback(async () => {
     setError(null);
     setLoading(true);
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      return result.user;
+      await signInWithRedirect(auth, googleProvider);
+      // Result will be handled by getRedirectResult in useEffect
     } catch (err) {
       setError(getErrorMessage(err.code));
-      throw err;
-    } finally {
       setLoading(false);
+      throw err;
     }
   }, []);
 

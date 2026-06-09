@@ -1,15 +1,12 @@
-import { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useMemo } from 'react';
+import { motion } from 'framer-motion';
 import {
   Settings, Clock, CheckCircle2, Zap, Play, Check, User,
-  Compass, ChevronRight
 } from 'lucide-react';
 import useTaskStore from '../store/useTaskStore';
 import useSettingsStore from '../store/useSettingsStore';
-import useDiaryStore from '../store/useDiaryStore';
-import { getGreeting, getDaysUntil, getToday, formatDuration } from '../utils/dateHelpers';
+import { getGreeting, getToday, formatDuration } from '../utils/dateHelpers';
 import { getCategoryColor, getCategoryName } from '../utils/subjects';
-import { getTodayQuote } from '../utils/quotes';
 import { calcDailyEfficiency } from '../utils/calculations';
 import useStreak from '../hooks/useStreak';
 import FloatingActionButton from '../components/ui/FloatingActionButton';
@@ -22,33 +19,9 @@ const pageVariants = {
 
 export default function Dashboard({ onOpenSettings, onStartTimer, onOpenAddTask }) {
   const { tasks, sessions } = useTaskStore();
-  const { userName, targetDate, targetName, dailyTargetHours } = useSettingsStore();
-  const { entries, addEntry, updateEntry } = useDiaryStore();
+  const { userName, dailyTargetHours } = useSettingsStore();
   const { currentStreak } = useStreak();
-  const quote = getTodayQuote();
   const today = getToday();
-
-  // Daily intention
-  const todayEntry = entries.find((e) => e.date === today);
-  const [intention, setIntention] = useState(todayEntry?.morningIntention || '');
-
-  const handleIntentionBlur = () => {
-    if (!intention.trim()) return;
-    if (todayEntry) {
-      updateEntry(todayEntry.id, { morningIntention: intention });
-    } else {
-      addEntry({ morningIntention: intention, date: today });
-    }
-  };
-
-  // Target countdown
-  const daysUntil = targetDate ? getDaysUntil(targetDate) : null;
-  const totalDays = getDaysUntil('2025-02-01') !== null
-    ? Math.abs(getDaysUntil('2025-02-01')) + (daysUntil || 365)
-    : 730;
-  const progressPercent = daysUntil !== null
-    ? Math.max(0, Math.min(100, ((totalDays - daysUntil) / totalDays) * 100))
-    : 0;
 
   // Today's tasks
   const todayTasks = useMemo(
@@ -98,124 +71,35 @@ export default function Dashboard({ onOpenSettings, onStartTimer, onOpenAddTask 
       </div>
 
       <div className="page-content">
-        {/* Greeting */}
-        <div>
-          <h1 className="heading-lg">{greeting}{userName ? `, ${userName}` : ''}.</h1>
-          <p className="body-sm" style={{ fontStyle: 'italic', marginTop: 2 }}>
-            "Small steps. Big wins."
-          </p>
+        {/* 1. Greeting + Streak — compact single line */}
+        <div className="flex items-center gap-sm" style={{ padding: '4px 0' }}>
+          <h1 className="heading-lg" style={{ flex: 1, fontSize: '1.25rem' }}>
+            {greeting}{userName ? `, ${userName}` : ''}!
+          </h1>
+          {currentStreak > 0 && (
+            <span
+              className="flex items-center gap-xs"
+              style={{
+                background: 'var(--accent-amber-light, rgba(232,168,56,0.1))',
+                padding: '6px 12px',
+                borderRadius: 'var(--radius-full)',
+                fontWeight: 700,
+                fontSize: '0.875rem',
+                color: 'var(--accent-amber)',
+                flexShrink: 0,
+              }}
+            >
+              🔥 {currentStreak} day streak
+            </span>
+          )}
         </div>
 
-        {/* Target Countdown Card */}
-        {targetDate ? (
-          <motion.div
-            className="card card--elevated"
-            style={{
-              background: 'linear-gradient(135deg, var(--accent-amber), #D49520)',
-              border: 'none',
-              color: '#fff',
-            }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <span style={{
-              fontSize: '0.7rem',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.1em',
-              opacity: 0.9,
-            }}>
-              {targetName || 'Your Goal'}
-            </span>
-            <div style={{ marginTop: 4 }}>
-              <span style={{
-                fontFamily: 'var(--font-heading)',
-                fontSize: '3.5rem',
-                fontWeight: 700,
-                lineHeight: 1.1,
-              }}>
-                {daysUntil !== null ? daysUntil : '—'}
-              </span>
-              <span style={{
-                fontSize: '1.25rem',
-                fontWeight: 500,
-                marginLeft: 4,
-              }}>
-                Days
-              </span>
-            </div>
-            <div style={{
-              marginTop: 16,
-              height: 6,
-              background: 'rgba(255,255,255,0.3)',
-              borderRadius: 'var(--radius-full)',
-              overflow: 'hidden',
-            }}>
-              <motion.div
-                style={{
-                  height: '100%',
-                  background: '#fff',
-                  borderRadius: 'var(--radius-full)',
-                }}
-                initial={{ width: 0 }}
-                animate={{ width: `${progressPercent}%` }}
-                transition={{ duration: 1, delay: 0.3, ease: 'easeOut' }}
-              />
-            </div>
-          </motion.div>
-        ) : (
-          <motion.div
-            className="card card--elevated"
-            style={{
-              background: 'linear-gradient(135deg, var(--accent-amber), #D49520)',
-              border: 'none',
-              color: '#fff',
-              textAlign: 'center',
-              padding: 24,
-            }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <span style={{
-              fontSize: '0.9rem',
-              fontWeight: 600,
-              opacity: 0.9,
-            }}>
-              Set your target date in Settings to see a countdown here.
-            </span>
-          </motion.div>
-        )}
-
-        {/* Streak Card */}
-        <motion.div
-          className="card card--elevated"
-          style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 24 }}
-          whileTap={{ scale: 0.98 }}
-        >
-          <div style={{
-            fontSize: '2.5rem',
-            background: 'var(--accent-amber-light)',
-            width: 64,
-            height: 64,
-            borderRadius: 'var(--radius-full)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}>
-            🔥
-          </div>
-          <span className="heading-md" style={{ marginTop: 8 }}>
-            {currentStreak} Day Streak
-          </span>
-          <span className="body-sm" style={{ marginTop: 2 }}>
-            {currentStreak > 0 ? 'Keep the momentum going.' : 'Start studying to build a streak!'}
-          </span>
-        </motion.div>
-
-        {/* Quick Stats Row */}
+        {/* 2. Quick Stats — 3 compact cards */}
         <div className="flex gap-sm">
           {[
-            { icon: <Clock size={20} />, value: `${hoursStudied.toFixed(1)}h`, label: 'Studied' },
-            { icon: <CheckCircle2 size={20} />, value: `${completedCount}/${todayTasks.length}`, label: 'Tasks' },
-            { icon: <Zap size={20} />, value: `${efficiency}%`, label: 'Efficiency' },
+            { icon: <Clock size={18} />, value: `${hoursStudied.toFixed(1)}h`, label: 'Hours' },
+            { icon: <CheckCircle2 size={18} />, value: `${completedCount}/${todayTasks.length}`, label: 'Tasks' },
+            { icon: <Zap size={18} />, value: `${efficiency}%`, label: 'Efficiency' },
           ].map((stat, i) => (
             <motion.div
               key={stat.label}
@@ -225,12 +109,12 @@ export default function Dashboard({ onOpenSettings, onStartTimer, onOpenAddTask 
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: 4,
-                padding: '16px 8px',
+                gap: 2,
+                padding: '12px 6px',
               }}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 * i + 0.2 }}
+              transition={{ delay: 0.1 * i + 0.1 }}
             >
               <span style={{ color: 'var(--accent-amber)' }}>{stat.icon}</span>
               <span style={{ fontWeight: 700, fontSize: '1.125rem' }}>{stat.value}</span>
@@ -239,24 +123,7 @@ export default function Dashboard({ onOpenSettings, onStartTimer, onOpenAddTask 
           ))}
         </div>
 
-        {/* Daily Intention Box */}
-        <div className="card card--elevated" style={{ padding: 20 }}>
-          <div className="flex items-center gap-sm mb-sm">
-            <Compass size={18} style={{ color: 'var(--accent-amber)' }} />
-            <span className="heading-md" style={{ fontSize: '1rem' }}>Daily Intention</span>
-          </div>
-          <textarea
-            className="textarea input--warm"
-            placeholder="What is your #1 goal today?"
-            value={intention}
-            onChange={(e) => setIntention(e.target.value)}
-            onBlur={handleIntentionBlur}
-            rows={2}
-            style={{ minHeight: 60 }}
-          />
-        </div>
-
-        {/* Today's Tasks */}
+        {/* 3. Today's Tasks */}
         <div>
           <h3 className="heading-md mb-sm">Today's Tasks</h3>
           {todayTasks.length === 0 ? (
@@ -361,20 +228,22 @@ export default function Dashboard({ onOpenSettings, onStartTimer, onOpenAddTask 
           )}
         </div>
 
-        {/* Quote of the Day */}
-        <div className="card" style={{ textAlign: 'center', borderLeft: '3px solid var(--accent-amber)', padding: 20 }}>
-          <p className="body-sm" style={{ fontStyle: 'italic', lineHeight: 1.6 }}>
-            "{quote.text}"
-          </p>
-          <p style={{
-            marginTop: 8,
-            fontSize: '0.75rem',
-            color: 'var(--text-light)',
-            fontWeight: 600,
-          }}>
-            — {quote.author}
-          </p>
-        </div>
+        {/* 4. Quick Focus Button */}
+        <motion.button
+          className="btn btn--primary btn--lg w-full"
+          style={{
+            padding: '18px 24px',
+            fontSize: '1.0625rem',
+            fontWeight: 700,
+            gap: 10,
+            borderRadius: 'var(--radius-md)',
+          }}
+          whileTap={{ scale: 0.97 }}
+          onClick={() => onStartTimer && onStartTimer()}
+        >
+          <Play size={20} fill="currentColor" />
+          Start Focusing
+        </motion.button>
       </div>
 
       <FloatingActionButton onClick={onOpenAddTask} />

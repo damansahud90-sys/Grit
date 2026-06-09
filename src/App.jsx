@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import BottomNav from './components/ui/BottomNav';
-import Modal from './components/ui/Modal';
+import AddTaskModal from './components/AddTaskModal';
+import FloatingTimer from './components/ui/FloatingTimer';
 import Dashboard from './pages/Dashboard';
 import Goals from './pages/Goals';
 import Focus from './pages/Focus';
@@ -22,7 +23,6 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('home');
   const [showSettings, setShowSettings] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
-  const [timerTaskId, setTimerTaskId] = useState(null);
   const theme = useSettingsStore((s) => s.theme);
   const isOnboarded = useSettingsStore((s) => s.isOnboarded);
   const isGuest = useSettingsStore((s) => s.isGuest);
@@ -44,7 +44,6 @@ export default function App() {
 
   // Handle start timer from dashboard
   const handleStartTimer = useCallback((taskId) => {
-    setTimerTaskId(taskId);
     setActiveTab('focus');
   }, []);
 
@@ -95,7 +94,7 @@ export default function App() {
       case 'goals':
         return <Goals key="goals" onOpenSettings={() => setShowSettings(true)} />;
       case 'focus':
-        return <Focus key="focus" initialTaskId={timerTaskId} />;
+        return <Focus key="focus" onOpenSettings={() => setShowSettings(true)} />;
       case 'stats':
         return <Stats key="stats" />;
       case 'diary':
@@ -107,6 +106,11 @@ export default function App() {
 
   return (
     <div className="app-shell">
+      {/* Floating timer pill — visible when timer is running and not on Focus tab */}
+      {activeTab !== 'focus' && (
+        <FloatingTimer onTap={() => setActiveTab('focus')} />
+      )}
+
       {/* Page content area */}
       <div className="app-shell__content">
         <AnimatePresence mode="wait">
@@ -129,138 +133,13 @@ export default function App() {
       </AnimatePresence>
 
       {/* Quick Add Task Modal */}
-      <Modal
+      <AddTaskModal
         isOpen={showAddTask}
         onClose={() => setShowAddTask(false)}
-        title="Quick Add Task"
-      >
-        <QuickAddTaskForm onClose={() => setShowAddTask(false)} />
-      </Modal>
+      />
     </div>
   );
 }
 
 /* ─── Quick Add Task Form ───────────────── */
-function QuickAddTaskForm({ onClose }) {
-  const addTask = useTaskStore((s) => s.addTask);
-  const { categories } = useSettingsStore();
-  const [title, setTitle] = useState('');
-  const [subject, setSubject] = useState('');
-  const [priority, setPriority] = useState('medium');
-  const [targetHours, setTargetHours] = useState(1);
-  const [targetMinutes, setTargetMinutes] = useState(0);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!title.trim()) return;
-
-    addTask({
-      title: title.trim(),
-      type: 'daily',
-      subject,
-      priority,
-      targetMinutes: (targetHours * 60) + targetMinutes,
-      loggedMinutes: 0,
-      targetDate: getToday(),
-      subTasks: [],
-      status: 'active',
-      isRecurring: false,
-      recurringInterval: null,
-      dependsOn: null,
-      notes: '',
-    });
-
-    onClose();
-  };
-
-  return (
-    <form onSubmit={handleSubmit}>
-      <div style={{ marginBottom: 14 }}>
-        <label className="body-sm" style={{ fontWeight: 500, marginBottom: 6, display: 'block' }}>
-          Task Title *
-        </label>
-        <input
-          className="input input--warm w-full"
-          placeholder="e.g., Finish project proposal"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          autoFocus
-        />
-      </div>
-
-      <div style={{ marginBottom: 14 }}>
-        <label className="body-sm" style={{ fontWeight: 500, marginBottom: 6, display: 'block' }}>
-          Category
-        </label>
-        <select
-          className="select w-full"
-          value={subject}
-          onChange={(e) => setSubject(e.target.value)}
-        >
-          <option value="">Select category...</option>
-          {categories.map((s) => (
-            <option key={s.key} value={s.key}>{s.name}</option>
-          ))}
-        </select>
-      </div>
-
-      <div style={{ marginBottom: 14 }}>
-        <label className="body-sm" style={{ fontWeight: 500, marginBottom: 6, display: 'block' }}>
-          Priority
-        </label>
-        <div className="flex gap-xs">
-          {[
-            { key: 'critical', label: '🔴 Critical' },
-            { key: 'high', label: '🟠 High' },
-            { key: 'medium', label: '🟡 Medium' },
-            { key: 'low', label: '🟢 Low' },
-          ].map((p) => (
-            <button
-              key={p.key}
-              type="button"
-              className={`btn ${priority === p.key ? 'btn--primary' : 'btn--ghost'} btn--sm`}
-              style={{ flex: 1, fontSize: '0.6875rem' }}
-              onClick={() => setPriority(p.key)}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div style={{ marginBottom: 20 }}>
-        <label className="body-sm" style={{ fontWeight: 500, marginBottom: 6, display: 'block' }}>
-          Target Time
-        </label>
-        <div className="flex gap-md" style={{ justifyContent: 'center' }}>
-          <TimeStepper
-            value={targetHours}
-            onChange={setTargetHours}
-            min={0}
-            max={12}
-            label="Hours"
-            unit="hrs"
-          />
-          <TimeStepper
-            value={targetMinutes}
-            onChange={setTargetMinutes}
-            min={0}
-            max={55}
-            step={5}
-            label="Minutes"
-            unit="min"
-          />
-        </div>
-      </div>
-
-      <div className="flex gap-sm">
-        <button type="submit" className="btn btn--primary" style={{ flex: 1 }}>
-          Add Task
-        </button>
-        <button type="button" className="btn btn--ghost" style={{ flex: 1 }} onClick={onClose}>
-          Cancel
-        </button>
-      </div>
-    </form>
-  );
-}

@@ -7,12 +7,12 @@ import {
 import useTaskStore from '../store/useTaskStore';
 import useSettingsStore from '../store/useSettingsStore';
 import { getCategoryColor, getCategoryName } from '../utils/subjects';
-import TimeStepper from '../components/ui/TimeStepper';
 import { formatDuration, getToday } from '../utils/dateHelpers';
 import dayjs from 'dayjs';
 import { calcProgressPercent } from '../utils/calculations';
 import FloatingActionButton from '../components/ui/FloatingActionButton';
 import Modal from '../components/ui/Modal';
+import AddTaskModal from '../components/AddTaskModal';
 
 const pageVariants = {
   initial: { opacity: 0, x: 30 },
@@ -35,7 +35,7 @@ const PRIORITY_OPTIONS = [
 ];
 
 export default function Goals({ onOpenSettings }) {
-  const { tasks, addTask, updateTask, deleteTask, toggleSubTask, carryForwardTask } = useTaskStore();
+  const { tasks, updateTask, deleteTask, toggleSubTask, carryForwardTask } = useTaskStore();
   const { categories } = useSettingsStore();
   const [activeTab, setActiveTab] = useState('daily');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -61,97 +61,33 @@ export default function Goals({ onOpenSettings }) {
     [tasks, activeTab]
   );
 
-  // New task form state
-  const [form, setForm] = useState({
-    title: '',
-    type: 'daily',
-    subject: '',
-    priority: 'medium',
-    targetHours: 0,
-    targetMinutes: 0,
-    targetDate: today,
-    subTasks: [],
-    notes: '',
-    isRecurring: false,
-    recurringInterval: 'daily',
-  });
-  const [newSubTask, setNewSubTask] = useState('');
-
-  const resetForm = () => {
-    setForm({
-      title: '',
-      type: activeTab,
-      subject: '',
-      priority: 'medium',
-      targetHours: 0,
-      targetMinutes: 0,
-      targetDate: today,
-      subTasks: [],
-      notes: '',
-      isRecurring: false,
-      recurringInterval: 'daily',
-    });
-    setNewSubTask('');
-    setEditingTask(null);
-  };
-
-  const handleAddSubTask = () => {
-    if (!newSubTask.trim()) return;
-    setForm((f) => ({
-      ...f,
-      subTasks: [...f.subTasks, { id: crypto.randomUUID(), text: newSubTask.trim(), done: false }],
-    }));
-    setNewSubTask('');
-  };
-
-  const handleRemoveSubTask = (id) => {
-    setForm((f) => ({
-      ...f,
-      subTasks: f.subTasks.filter((st) => st.id !== id),
-    }));
-  };
-
-  const handleSubmit = () => {
-    if (!form.title.trim()) return;
-    const taskData = {
-      title: form.title.trim(),
-      type: form.type,
-      subject: form.subject,
-      priority: form.priority,
-      targetMinutes: Number(form.targetHours) * 60 + Number(form.targetMinutes),
-      targetDate: form.targetDate,
-      subTasks: form.subTasks,
-      notes: form.notes,
-      isRecurring: form.isRecurring,
-      recurringInterval: form.isRecurring ? form.recurringInterval : null,
-    };
-
-    if (editingTask) {
-      updateTask(editingTask.id, taskData);
-    } else {
-      addTask(taskData);
-    }
-    setShowAddModal(false);
-    resetForm();
-  };
+  // Edit form state (lightweight — only for editing existing tasks)
+  const [editForm, setEditForm] = useState({});
 
   const handleEdit = (task) => {
-    setForm({
+    setEditForm({
       title: task.title,
       type: task.type,
       subject: task.subject || '',
       priority: task.priority || 'medium',
-      targetHours: Math.floor((task.targetMinutes || 0) / 60),
-      targetMinutes: (task.targetMinutes || 0) % 60,
-      targetDate: task.targetDate || today,
-      subTasks: task.subTasks || [],
+      targetMinutes: task.targetMinutes || 0,
       notes: task.notes || '',
-      isRecurring: task.isRecurring || false,
-      recurringInterval: task.recurringInterval || 'daily',
     });
     setEditingTask(task);
-    setShowAddModal(true);
     setMenuOpenId(null);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editForm.title?.trim() || !editingTask) return;
+    updateTask(editingTask.id, {
+      title: editForm.title.trim(),
+      type: editForm.type,
+      subject: editForm.subject,
+      priority: editForm.priority,
+      targetMinutes: editForm.targetMinutes,
+      notes: editForm.notes,
+    });
+    setEditingTask(null);
   };
 
   const handleDelete = (id) => {
@@ -461,47 +397,44 @@ export default function Goals({ onOpenSettings }) {
         )}
       </div>
 
-      <FloatingActionButton
-        onClick={() => {
-          resetForm();
-          setShowAddModal(true);
-        }}
+      <FloatingActionButton onClick={() => setShowAddModal(true)} />
+
+      {/* Add Task Modal (unified component) */}
+      <AddTaskModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onTaskCreated={() => {}}
       />
 
-      {/* Add/Edit Goal Modal */}
+      {/* Lightweight Edit Modal */}
       <Modal
-        isOpen={showAddModal}
-        onClose={() => {
-          setShowAddModal(false);
-          resetForm();
-        }}
-        title={editingTask ? 'Edit Goal' : 'New Goal'}
+        isOpen={!!editingTask}
+        onClose={() => setEditingTask(null)}
+        title="Edit Goal"
       >
         <div className="flex-col gap-md">
-          {/* Title */}
           <div>
             <label className="body-sm" style={{ fontWeight: 600, marginBottom: 6, display: 'block' }}>
-              Goal Title
+              Title
             </label>
             <input
               className="input"
-              placeholder="e.g., Complete project proposal"
-              value={form.title}
-              onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+              value={editForm.title || ''}
+              onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))}
+              autoFocus
             />
           </div>
 
-          {/* Type */}
           <div>
             <label className="body-sm" style={{ fontWeight: 600, marginBottom: 6, display: 'block' }}>
-              Goal Type
+              Type
             </label>
             <div className="tab-switcher">
               {TAB_OPTIONS.map((t) => (
                 <button
                   key={t.key}
-                  className={`tab-switcher__tab ${form.type === t.key ? 'tab-switcher__tab--active' : ''}`}
-                  onClick={() => setForm((f) => ({ ...f, type: t.key }))}
+                  className={`tab-switcher__tab ${editForm.type === t.key ? 'tab-switcher__tab--active' : ''}`}
+                  onClick={() => setEditForm((f) => ({ ...f, type: t.key }))}
                 >
                   {t.label}
                 </button>
@@ -509,15 +442,14 @@ export default function Goals({ onOpenSettings }) {
             </div>
           </div>
 
-          {/* Subject */}
           <div>
             <label className="body-sm" style={{ fontWeight: 600, marginBottom: 6, display: 'block' }}>
               Category
             </label>
             <select
               className="select"
-              value={form.subject}
-              onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
+              value={editForm.subject || ''}
+              onChange={(e) => setEditForm((f) => ({ ...f, subject: e.target.value }))}
             >
               <option value="">Select category...</option>
               {categories.map((s) => (
@@ -526,7 +458,6 @@ export default function Goals({ onOpenSettings }) {
             </select>
           </div>
 
-          {/* Priority */}
           <div>
             <label className="body-sm" style={{ fontWeight: 600, marginBottom: 6, display: 'block' }}>
               Priority
@@ -539,10 +470,10 @@ export default function Goals({ onOpenSettings }) {
                   style={{
                     padding: '8px 14px',
                     cursor: 'pointer',
-                    outline: form.priority === p.key ? '2px solid var(--accent-amber)' : 'none',
+                    outline: editForm.priority === p.key ? '2px solid var(--accent-amber)' : 'none',
                     outlineOffset: 2,
                   }}
-                  onClick={() => setForm((f) => ({ ...f, priority: p.key }))}
+                  onClick={() => setEditForm((f) => ({ ...f, priority: p.key }))}
                 >
                   {p.icon} {p.label}
                 </button>
@@ -550,106 +481,23 @@ export default function Goals({ onOpenSettings }) {
             </div>
           </div>
 
-          {/* Target time */}
-          <div>
-            <label className="body-sm" style={{ fontWeight: 600, marginBottom: 6, display: 'block' }}>
-              Target Time
-            </label>
-            <div className="flex gap-md" style={{ justifyContent: 'center' }}>
-              <TimeStepper value={form.targetHours || 0} onChange={(v) => setForm((f) => ({ ...f, targetHours: v }))} min={0} max={23} label="Hours" unit="hrs" />
-              <TimeStepper value={form.targetMinutes || 0} onChange={(v) => setForm((f) => ({ ...f, targetMinutes: v }))} min={0} max={59} step={5} label="Minutes" unit="min" />
-            </div>
-          </div>
-
-          {/* Target date */}
-          <div>
-            <label className="body-sm" style={{ fontWeight: 600, marginBottom: 6, display: 'block' }}>
-              Target Date
-            </label>
-            <input
-              className="input"
-              type="date"
-              value={form.targetDate}
-              onChange={(e) => setForm((f) => ({ ...f, targetDate: e.target.value }))}
-            />
-          </div>
-
-          {/* Sub-tasks */}
-          <div>
-            <label className="body-sm" style={{ fontWeight: 600, marginBottom: 6, display: 'block' }}>
-              Sub-tasks
-            </label>
-            {form.subTasks.map((st) => (
-              <div key={st.id} className="flex items-center gap-sm mb-sm">
-                <span style={{ flex: 1, fontSize: '0.875rem' }}>{st.text}</span>
-                <button
-                  className="btn btn--icon"
-                  style={{ width: 28, height: 28, padding: 0 }}
-                  onClick={() => handleRemoveSubTask(st.id)}
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            ))}
-            {form.subTasks.length < 10 && (
-              <div className="flex gap-sm">
-                <input
-                  className="input"
-                  placeholder="Add a sub-task..."
-                  value={newSubTask}
-                  onChange={(e) => setNewSubTask(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAddSubTask()}
-                  style={{ flex: 1 }}
-                />
-                <button className="btn btn--primary btn--sm" onClick={handleAddSubTask}>
-                  <Plus size={16} />
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Notes */}
-          <div>
-            <label className="body-sm" style={{ fontWeight: 600, marginBottom: 6, display: 'block' }}>
-              Notes
-            </label>
-            <textarea
-              className="textarea"
-              placeholder="Additional notes..."
-              value={form.notes}
-              onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-              rows={3}
-              style={{ minHeight: 60 }}
-            />
-          </div>
-
-          {/* Recurring */}
-          <div className="flex-between">
-            <span style={{ fontWeight: 500, fontSize: '0.9375rem' }}>Recurring</span>
-            <label className="toggle-switch">
-              <input
-                type="checkbox"
-                checked={form.isRecurring}
-                onChange={(e) => setForm((f) => ({ ...f, isRecurring: e.target.checked }))}
+          {editForm.notes !== undefined && (
+            <div>
+              <label className="body-sm" style={{ fontWeight: 600, marginBottom: 6, display: 'block' }}>
+                Notes
+              </label>
+              <textarea
+                className="textarea"
+                value={editForm.notes || ''}
+                onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
+                rows={3}
+                style={{ minHeight: 60 }}
               />
-              <span className="toggle-switch__slider" />
-            </label>
-          </div>
-          {form.isRecurring && (
-            <select
-              className="select"
-              value={form.recurringInterval}
-              onChange={(e) => setForm((f) => ({ ...f, recurringInterval: e.target.value }))}
-            >
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
-              <option value="monthly">Monthly</option>
-            </select>
+            </div>
           )}
 
-          {/* Submit */}
-          <button className="btn btn--primary btn--lg w-full" onClick={handleSubmit}>
-            {editingTask ? 'Save Changes' : 'Create Goal'}
+          <button className="btn btn--primary btn--lg w-full" onClick={handleSaveEdit}>
+            Save Changes
           </button>
         </div>
       </Modal>

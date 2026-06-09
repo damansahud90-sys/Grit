@@ -271,10 +271,7 @@ function MistakeTab() {
   const [randomMistake, setRandomMistake] = useState(null);
 
   // Form state
-  const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
-  const [rootCause, setRootCause] = useState('');
-  const [lesson, setLesson] = useState('');
 
   const filteredMistakes = useMemo(() => {
     let list = [...mistakes].sort((a, b) => (a.date > b.date ? -1 : 1));
@@ -287,15 +284,9 @@ function MistakeTab() {
   const handleAdd = () => {
     if (!description.trim()) return;
     addMistake({
-      subject,
       mistakeDescription: description,
-      rootCause,
-      lesson,
     });
-    setSubject('');
     setDescription('');
-    setRootCause('');
-    setLesson('');
     setShowForm(false);
   };
 
@@ -382,40 +373,12 @@ function MistakeTab() {
           >
             <h3 className="heading-md" style={{ marginBottom: 12 }}>Log a Mistake</h3>
 
-            <select
-              className="select"
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              style={{ marginBottom: 10 }}
-            >
-              <option value="">Select category...</option>
-              {categories.map((s) => (
-                <option key={s.key} value={s.key}>{s.name}</option>
-              ))}
-            </select>
-
             <textarea
               className="textarea input--warm"
-              placeholder="What was the mistake?"
+              placeholder="What went wrong today?"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              rows={2}
-              style={{ marginBottom: 10 }}
-            />
-            <textarea
-              className="textarea input--warm"
-              placeholder="Root cause / Why did it happen?"
-              value={rootCause}
-              onChange={(e) => setRootCause(e.target.value)}
-              rows={2}
-              style={{ marginBottom: 10 }}
-            />
-            <textarea
-              className="textarea input--warm"
-              placeholder="Lesson learned / How to avoid?"
-              value={lesson}
-              onChange={(e) => setLesson(e.target.value)}
-              rows={2}
+              rows={3}
               style={{ marginBottom: 12 }}
             />
 
@@ -431,21 +394,7 @@ function MistakeTab() {
         )}
       </AnimatePresence>
 
-      {/* Filter */}
-      <div className="flex items-center gap-sm" style={{ marginBottom: 12 }}>
-        <Filter size={16} style={{ color: 'var(--text-secondary)' }} />
-        <select
-          className="select"
-          value={filterSubject}
-          onChange={(e) => setFilterSubject(e.target.value)}
-          style={{ flex: 1 }}
-        >
-          <option value="">All categories</option>
-          {categories.map((s) => (
-            <option key={s.key} value={s.key}>{s.name}</option>
-          ))}
-        </select>
-      </div>
+
 
       {/* Mistakes list */}
       {filteredMistakes.length === 0 ? (
@@ -502,34 +451,7 @@ function MistakeCard({ mistake, onDelete }) {
 
       <p style={{ fontWeight: 500, fontSize: '0.9375rem' }}>{mistake.mistakeDescription}</p>
 
-      <AnimatePresence>
-        {expanded && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            style={{ marginTop: 10, overflow: 'hidden' }}
-          >
-            {mistake.rootCause && (
-              <div style={{ marginBottom: 6 }}>
-                <span className="body-sm" style={{ fontWeight: 600 }}>Root Cause:</span>
-                <p className="body-sm">{mistake.rootCause}</p>
-              </div>
-            )}
-            {mistake.lesson && (
-              <div style={{
-                padding: '8px 12px',
-                borderRadius: 8,
-                background: 'rgba(107,143,113,0.1)',
-              }}>
-                <span className="body-sm" style={{ fontWeight: 600, color: 'var(--accent-sage)' }}>
-                  💡 Lesson: </span>
-                <span className="body-sm">{mistake.lesson}</span>
-              </div>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+
     </motion.div>
   );
 }
@@ -537,23 +459,11 @@ function MistakeCard({ mistake, onDelete }) {
 /* ─── Pinned Notes Tab ───────────────────── */
 function NotesTab() {
   const { notes, addNote, updateNote, deleteNote, togglePinNote } = useDiaryStore();
-  const [search, setSearch] = useState('');
-  const [showForm, setShowForm] = useState(false);
-  const [editId, setEditId] = useState(null);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [color, setColor] = useState(NOTE_COLORS[0]);
 
   const filteredNotes = useMemo(() => {
     let list = [...notes];
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.filter(
-        (n) =>
-          (n.title && n.title.toLowerCase().includes(q)) ||
-          (n.content && n.content.toLowerCase().includes(q))
-      );
-    }
     // Pinned first, then by creation date
     list.sort((a, b) => {
       if (a.isPinned && !b.isPinned) return -1;
@@ -566,9 +476,9 @@ function NotesTab() {
   const handleSave = () => {
     if (!title.trim() && !content.trim()) return;
     if (editId) {
-      updateNote(editId, { title, content, color });
+      updateNote(editId, { title, content });
     } else {
-      addNote({ title, content, color });
+      addNote({ title, content });
     }
     resetForm();
   };
@@ -576,7 +486,6 @@ function NotesTab() {
   const resetForm = () => {
     setTitle('');
     setContent('');
-    setColor(NOTE_COLORS[0]);
     setEditId(null);
     setShowForm(false);
   };
@@ -585,7 +494,6 @@ function NotesTab() {
     setEditId(note.id);
     setTitle(note.title);
     setContent(note.content);
-    setColor(note.color || NOTE_COLORS[0]);
     setShowForm(true);
   };
 
@@ -596,26 +504,8 @@ function NotesTab() {
       exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.2 }}
     >
-      {/* Search */}
-      <div className="flex items-center gap-sm" style={{ marginBottom: 12 }}>
-        <div style={{
-          flex: 1,
-          display: 'flex',
-          alignItems: 'center',
-          background: 'var(--bg-input, #FDF9F4)',
-          borderRadius: 10,
-          padding: '0 12px',
-          border: '1px solid var(--border)',
-        }}>
-          <Search size={16} style={{ color: 'var(--text-light)', flexShrink: 0 }} />
-          <input
-            className="input"
-            style={{ border: 'none', background: 'transparent', boxShadow: 'none' }}
-            placeholder="Search notes..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
+      {/* Actions */}
+      <div className="flex items-center gap-sm" style={{ marginBottom: 12, justifyContent: 'flex-end' }}>
         <motion.button
           className="btn btn--primary btn--icon"
           style={{ width: 44, height: 44, borderRadius: 12 }}
@@ -655,25 +545,7 @@ function NotesTab() {
               style={{ marginBottom: 12 }}
             />
 
-            {/* Color selector */}
-            <div className="flex items-center gap-sm" style={{ marginBottom: 16 }}>
-              <span className="body-sm" style={{ fontWeight: 500 }}>Color:</span>
-              {NOTE_COLORS.map((c) => (
-                <motion.button
-                  key={c}
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: '50%',
-                    background: c,
-                    border: color === c ? '3px solid var(--text-primary)' : '2px solid transparent',
-                    cursor: 'pointer',
-                  }}
-                  whileTap={{ scale: 0.85 }}
-                  onClick={() => setColor(c)}
-                />
-              ))}
-            </div>
+
 
             <div className="flex gap-sm">
               <button className="btn btn--primary" style={{ flex: 1 }} onClick={handleSave}>
@@ -709,7 +581,7 @@ function NotesTab() {
               className="card"
               style={{
                 padding: 14,
-                borderTop: `3px solid ${note.color || NOTE_COLORS[0]}`,
+                borderTop: `3px solid ${NOTE_COLORS[0]}`,
                 cursor: 'pointer',
                 position: 'relative',
               }}

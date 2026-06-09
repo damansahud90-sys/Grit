@@ -15,7 +15,6 @@ import {
   calcHourlyDistribution, calcSubjectHours,
 } from '../utils/calculations';
 import { getCategoryColor, getCategoryName } from '../utils/subjects';
-import Modal from '../components/ui/Modal';
 
 const pageVariants = {
   initial: { opacity: 0, x: 30 },
@@ -26,11 +25,8 @@ const pageVariants = {
 const HEATMAP_COLORS = ['var(--bg-secondary)', '#FEF3C7', '#FDE68A', '#F59E0B', '#D97706'];
 
 export default function Stats({ onOpenSettings }) {
-  const { sessions, mockScores, addMockScore } = useTaskStore();
+  const { sessions } = useTaskStore();
   const { dailyTargetHours, categoryTargets, categories } = useSettingsStore();
-
-  const [showMockModal, setShowMockModal] = useState(false);
-  const [mockForm, setMockForm] = useState({ name: '', score: '', percentile: '', rank: '' });
 
   const today = dayjs().format('YYYY-MM-DD');
   const currentMonth = dayjs().month() + 1;
@@ -98,17 +94,7 @@ export default function Stats({ onOpenSettings }) {
     ...heatmapData,
   ];
 
-  const handleAddMock = () => {
-    if (!mockForm.name || !mockForm.score) return;
-    addMockScore({
-      name: mockForm.name,
-      score: Number(mockForm.score),
-      percentile: mockForm.percentile ? Number(mockForm.percentile) : null,
-      rank: mockForm.rank || '',
-    });
-    setMockForm({ name: '', score: '', percentile: '', rank: '' });
-    setShowMockModal(false);
-  };
+
 
   // Custom tooltip
   const CustomTooltip = ({ active, payload, label }) => {
@@ -423,117 +409,7 @@ export default function Stats({ onOpenSettings }) {
           )}
         </div>
 
-        {/* Mock Test Score Log */}
-        <div className="card card--elevated" style={{ padding: 20 }}>
-          <div className="flex-between" style={{ marginBottom: 16 }}>
-            <h3 className="heading-md">Mock Test Scores</h3>
-            <button
-              className="btn btn--sm btn--primary"
-              onClick={() => setShowMockModal(true)}
-            >
-              <Plus size={14} /> Add
-            </button>
-          </div>
-          {mockScores.length === 0 ? (
-            <p className="body-sm" style={{ textAlign: 'center', padding: 16 }}>
-              No mock scores logged yet.
-            </p>
-          ) : (
-            <div>
-              {mockScores.map((score) => (
-                <div
-                  key={score.id}
-                  className="flex-between"
-                  style={{
-                    padding: '12px 0',
-                    borderBottom: '1px solid var(--border-light)',
-                  }}
-                >
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{score.name}</div>
-                    <div className="body-sm" style={{ fontSize: '0.75rem' }}>{score.date}</div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{
-                      fontWeight: 700,
-                      fontSize: '1rem',
-                      color: 'var(--accent-amber)',
-                    }}>
-                      {score.score}
-                    </div>
-                    {score.percentile && (
-                      <div className="body-sm" style={{ fontSize: '0.6875rem' }}>
-                        {score.percentile}%ile
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
       </div>
-
-      {/* Add Mock Score Modal */}
-      <Modal
-        isOpen={showMockModal}
-        onClose={() => setShowMockModal(false)}
-        title="Add Mock Score"
-      >
-        <div className="flex-col gap-md">
-          <div>
-            <label className="body-sm" style={{ fontWeight: 600, marginBottom: 6, display: 'block' }}>
-              Mock Test Name
-            </label>
-            <input
-              className="input"
-              placeholder="e.g., Practice Test 1"
-              value={mockForm.name}
-              onChange={(e) => setMockForm((f) => ({ ...f, name: e.target.value }))}
-            />
-          </div>
-          <div className="flex gap-sm">
-            <div style={{ flex: 1 }}>
-              <label className="body-sm" style={{ fontWeight: 600, marginBottom: 6, display: 'block' }}>
-                Score
-              </label>
-              <input
-                className="input"
-                type="number"
-                placeholder="Marks"
-                value={mockForm.score}
-                onChange={(e) => setMockForm((f) => ({ ...f, score: e.target.value }))}
-              />
-            </div>
-            <div style={{ flex: 1 }}>
-              <label className="body-sm" style={{ fontWeight: 600, marginBottom: 6, display: 'block' }}>
-                Percentile
-              </label>
-              <input
-                className="input"
-                type="number"
-                placeholder="%"
-                value={mockForm.percentile}
-                onChange={(e) => setMockForm((f) => ({ ...f, percentile: e.target.value }))}
-              />
-            </div>
-          </div>
-          <div>
-            <label className="body-sm" style={{ fontWeight: 600, marginBottom: 6, display: 'block' }}>
-              Rank (optional)
-            </label>
-            <input
-              className="input"
-              placeholder="Self-assessed rank"
-              value={mockForm.rank}
-              onChange={(e) => setMockForm((f) => ({ ...f, rank: e.target.value }))}
-            />
-          </div>
-          <button className="btn btn--primary btn--lg w-full" onClick={handleAddMock}>
-            Save Score
-          </button>
-        </div>
-      </Modal>
     </motion.div>
   );
 }
