@@ -73,15 +73,17 @@ const useTaskStore = create(
 
       completeTask: (id) => {
         set((state) => ({
-          tasks: state.tasks.map((t) =>
-            t.id === id
-              ? {
-                  ...t,
-                  status: 'completed',
-                  completedAt: new Date().toISOString(),
-                }
-              : t
-          ),
+          tasks: state.tasks.map((t) => {
+            if (t.id === id) {
+              const isCompleted = t.status === 'completed';
+              return {
+                ...t,
+                status: isCompleted ? 'active' : 'completed',
+                completedAt: isCompleted ? null : new Date().toISOString(),
+              };
+            }
+            return t;
+          }),
         }));
       },
 

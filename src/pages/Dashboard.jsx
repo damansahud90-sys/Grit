@@ -163,7 +163,7 @@ export default function Dashboard({ onOpenSettings, onStartTimer, onOpenAddTask 
                         }}
                         whileTap={{ scale: 0.8 }}
                         onClick={() => {
-                          if (!isCompleted) toggleTaskDone(task.id);
+                          toggleTaskDone(task.id);
                         }}
                       >
                         {isCompleted && <Check size={14} strokeWidth={3} />}

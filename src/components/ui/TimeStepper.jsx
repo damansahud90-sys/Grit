@@ -30,6 +30,7 @@ const TimeStepper = ({ value, onChange, min = 0, max = 99, step = 1, label = '',
 
   // Press and hold for continuous increment/decrement
   const startHold = useCallback((action) => {
+    if (timeoutRef.current) return;
     action(); // fire once immediately
     timeoutRef.current = setTimeout(() => {
       intervalRef.current = setInterval(action, 100);
@@ -39,6 +40,8 @@ const TimeStepper = ({ value, onChange, min = 0, max = 99, step = 1, label = '',
   const stopHold = useCallback(() => {
     clearTimeout(timeoutRef.current);
     clearInterval(intervalRef.current);
+    timeoutRef.current = null;
+    intervalRef.current = null;
   }, []);
 
   // Handle direct keyboard input

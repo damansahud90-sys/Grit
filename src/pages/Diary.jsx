@@ -459,8 +459,11 @@ function MistakeCard({ mistake, onDelete }) {
 /* ─── Pinned Notes Tab ───────────────────── */
 function NotesTab() {
   const { notes, addNote, updateNote, deleteNote, togglePinNote } = useDiaryStore();
+  const [search, setSearch] = useState('');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [editId, setEditId] = useState(null);
+  const [showForm, setShowForm] = useState(false);
 
   const filteredNotes = useMemo(() => {
     let list = [...notes];

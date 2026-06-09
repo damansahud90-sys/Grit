@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "314917536663",
+    "project_id": "grit-dcc6b",
+    "storage_bucket": "grit-dcc6b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:314917536663:android:f883f6725e01ed6949fad2",
+        "android_client_info": {
+          "package_name": "com.damansahu.grit"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "314917536663-0lsceqvr7jnqggpq0dmkh4j6mqbbidml.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.damansahu.grit",
+            "certificate_hash": "5e275f5a415b0eb9471e068e091d357dfa7813b7"
+          }
+        },
+        {
+          "client_id": "314917536663-414ev8tjiiqldq37pmca5nmfb4644rt3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAU1tD1m8AWUujxFOqPIvDcGZmVl6XkzVg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "314917536663-414ev8tjiiqldq37pmca5nmfb4644rt3.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
